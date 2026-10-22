@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Manages menu stack navigation, opening, closing, and selection states for UI menus.
+/// Focused strictly on menu lifecycle and UI navigation without scene transition concerns.
+/// </summary>
 public class MenuManager : MonoBehaviour
 {
     public static MenuManager Instance { get; private set; }
@@ -18,12 +21,6 @@ public class MenuManager : MonoBehaviour
         GameOver,
     }
 
-    public enum Scene
-    {
-        MainMenu,
-        Game,
-    }
-
     [Serializable]
     public struct MenuData
     {
@@ -31,14 +28,9 @@ public class MenuManager : MonoBehaviour
         public GameObject Selected;
     }
 
+    [Header("Event System")]
     [SerializeField]
     private EventSystem _eventSystem;
-
-    [SerializeField]
-    private LoadingScreen _loadingScreen;
-
-    [SerializeField]
-    private CutsceneController _cutsceneController;
 
     [Header("Menu GameObjects")]
     [SerializeField]
@@ -59,23 +51,21 @@ public class MenuManager : MonoBehaviour
     [SerializeField]
     private MenuData _gameOverMenu;
 
-    [SerializeField]
-    private GameObject _cutsceneObj;
-
     private Dictionary<Menu, MenuData> _subMenus;
     private Stack<Tuple<Menu, MenuData>> _openedMenus = new Stack<Tuple<Menu, MenuData>>();
 
-    public static readonly Dictionary<Scene, string> Scenes = new()
-    {
-        { Scene.MainMenu, "MainMenu" },
-        { Scene.Game, "SampleScene" },
-    };
-
-    public CutsceneController CutsceneController => _cutsceneController;
-
     private void Awake()
     {
-        DontDestroyOnLoad(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         _subMenus = new Dictionary<Menu, MenuData>
         {
@@ -90,35 +80,26 @@ public class MenuManager : MonoBehaviour
 
     private void Start()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-
         OpenSubMenu(Menu.Main);
     }
 
+    /// <summary>
+    /// Opens the specified submenu, pushing it to the menu stack and activating its canvas.
+    /// </summary>
+    /// <param name="menu">The submenu type to open.</param>
     public void OpenSubMenu(Menu menu)
     {
-        // Check if the wanted menu exists
-        if (_subMenus.ContainsKey(menu) == false)
+        if (!_subMenus.ContainsKey(menu))
         {
             Debug.LogError($"MenuManager: Menu {menu} not found!");
             return;
         }
 
-        // Save the currently selected object before modifying anything
-        GameObject currentlySelected = _eventSystem.currentSelectedGameObject;
+        GameObject currentlySelected = _eventSystem != null ? _eventSystem.currentSelectedGameObject : null;
 
-        // Update the last menu's saved selected object with what's currently selected
-        Tuple<Menu, MenuData> lastMenuTuple = null;
         if (_openedMenus.Count > 0)
         {
-            lastMenuTuple = _openedMenus.Pop();
+            Tuple<Menu, MenuData> lastMenuTuple = _openedMenus.Pop();
             var updatedMenuData = new MenuData
             {
                 Canvas = lastMenuTuple.Item2.Canvas,
@@ -126,8 +107,10 @@ public class MenuManager : MonoBehaviour
             };
             _openedMenus.Push(new(lastMenuTuple.Item1, updatedMenuData));
 
-            // Hide last menu
-            _subMenus[lastMenuTuple.Item1].Canvas.SetActive(false);
+            if (lastMenuTuple.Item2.Canvas != null)
+            {
+                _subMenus[lastMenuTuple.Item1].Canvas.SetActive(false);
+            }
         }
 
         _openedMenus.Push(
@@ -141,164 +124,91 @@ public class MenuManager : MonoBehaviour
             )
         );
 
-        // Show new menu
-        _subMenus[menu].Canvas.SetActive(true);
-        _eventSystem.SetSelectedGameObject(_subMenus[menu].Selected);
+        if (_subMenus[menu].Canvas != null)
+        {
+            _subMenus[menu].Canvas.SetActive(true);
+        }
+
+        if (_eventSystem != null && _subMenus[menu].Selected != null)
+        {
+            _eventSystem.SetSelectedGameObject(_subMenus[menu].Selected);
+        }
     }
 
+    /// <summary>
+    /// Closes the top-most submenu on the stack and restores the previous submenu if available.
+    /// </summary>
     public void CloseLastSubMenu()
     {
         if (_openedMenus.Count == 0)
+        {
             return;
+        }
 
         Tuple<Menu, MenuData> currentMenu = _openedMenus.Pop();
-        _subMenus[currentMenu.Item1].Canvas.SetActive(false);
+        if (currentMenu.Item2.Canvas != null)
+        {
+            _subMenus[currentMenu.Item1].Canvas.SetActive(false);
+        }
 
         Tuple<Menu, MenuData> lastMenu = _openedMenus.Count > 0 ? _openedMenus.Peek() : null;
         if (lastMenu != null)
         {
-            _subMenus[lastMenu.Item1].Canvas.SetActive(true);
-            // Only set selected object if we have one saved
-            if (lastMenu.Item2.Selected != null)
+            if (lastMenu.Item2.Canvas != null)
+            {
+                _subMenus[lastMenu.Item1].Canvas.SetActive(true);
+            }
+
+            if (_eventSystem != null && lastMenu.Item2.Selected != null)
             {
                 _eventSystem.SetSelectedGameObject(lastMenu.Item2.Selected);
             }
         }
     }
 
+    /// <summary>
+    /// Closes all open submenus on the stack and optionally opens a new one.
+    /// </summary>
+    /// <param name="openOne">Optional menu to open after closing all others.</param>
     public void CloseAllSubMenus(Menu? openOne = null)
     {
         while (_openedMenus.Count > 0)
         {
             Tuple<Menu, MenuData> lastMenu = _openedMenus.Pop();
-            _subMenus[lastMenu.Item1].Canvas.SetActive(false);
+            if (lastMenu.Item2.Canvas != null)
+            {
+                _subMenus[lastMenu.Item1].Canvas.SetActive(false);
+            }
         }
+
         if (openOne != null)
         {
             OpenSubMenu(openOne.Value);
         }
     }
 
+    /// <summary>
+    /// Checks whether the currently active submenu at the top of the stack matches the specified type.
+    /// </summary>
+    /// <param name="menu">Menu type to test.</param>
+    /// <returns>True if the active menu matches, false otherwise.</returns>
     public bool IsLastMenuOfType(Menu menu)
     {
         if (_openedMenus.Count == 0)
+        {
             return false;
+        }
 
         Tuple<Menu, MenuData> currentMenu = _openedMenus.Peek();
         return currentMenu.Item1 == menu;
     }
 
-    public AsyncOperation LoadSceneAsync(Scene scene, LoadSceneMode mode = LoadSceneMode.Single)
-    {
-        string sceneName = Scenes[scene];
-        return SceneManager.LoadSceneAsync(sceneName, mode);
-    }
-
     /// <summary>
-    /// Loads a scene with loading screen. Automatically closes all menus.
+    /// Retrieves a component of type T attached to the menu's canvas.
     /// </summary>
-    /// <param name="scene">The scene to load.</param>
-    /// <param name="menuToOpen">Menu to open after scene loads (null to keep all closed).</param>
-    /// <param name="resetGameState">If true, destroys GameManager to reset game state.</param>
-    /// <param name="onComplete">Callback invoked after scene is loaded and menu is opened.</param>
-    public void LoadScene(
-        Scene scene,
-        Menu? menuToOpen = null,
-        bool resetGameState = false,
-        Action onComplete = null
-    )
-    {
-        if (resetGameState && GameManager.Instance != null)
-        {
-            Destroy(GameManager.Instance.gameObject);
-        }
-
-        StartCoroutine(LoadSceneCoroutine(scene, menuToOpen, onComplete));
-    }
-
-    /// <summary>
-    /// Loads the main menu scene and resets all game state to fresh.
-    /// Destroys GameManager and any other persistent game objects.
-    /// </summary>
-    public void LoadMainMenuAndReset()
-    {
-        LoadScene(Scene.MainMenu, Menu.Main, resetGameState: true);
-        if (AudioManager.Instance != null)
-        {
-            AudioManager.Instance.StopAllSounds(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);
-        }
-    }
-
-    private System.Collections.IEnumerator LoadSceneCoroutine(
-        Scene scene,
-        Menu? menuToOpen,
-        Action onComplete
-    )
-    {
-        Debug.Log($"[MenuManager] Starting scene load for {scene}");
-
-        // Show loading screen to cover everything - wait for fade in callback
-        bool fadeInComplete = false;
-        if (_loadingScreen != null)
-        {
-            _loadingScreen.Show(() => fadeInComplete = true);
-
-            // Wait for fade in to complete
-            while (!fadeInComplete)
-            {
-                yield return null;
-            }
-        }
-
-        Debug.Log($"[MenuManager] Loading screen shown, starting scene load");
-
-        // Start loading the scene
-        var asyncLoad = LoadSceneAsync(scene);
-
-        Debug.Log($"[MenuManager] Waiting for scene to load to 100%...");
-
-        // Wait until the scene is fully loaded (isDone)
-        while (!asyncLoad.isDone)
-        {
-            // Update loading bar with real progress (0 to 1)
-            if (_loadingScreen != null)
-            {
-                _loadingScreen.SetProgress(asyncLoad.progress);
-            }
-            yield return null;
-        }
-
-        Debug.Log($"[MenuManager] Scene fully loaded and activated");
-
-        // Close any old menus
-        CloseAllSubMenus();
-
-        // Now that we're in the new scene, open the target menu if specified
-        if (menuToOpen != null)
-        {
-            OpenSubMenu(menuToOpen.Value);
-        }
-
-        Debug.Log($"[MenuManager] Menu opened, hiding loading screen");
-
-        // Hide loading screen with fade out
-        if (_loadingScreen != null)
-        {
-            _loadingScreen.Hide();
-        }
-
-        // Invoke the completion callback
-        onComplete?.Invoke();
-
-        Debug.Log($"[MenuManager] Scene transition complete");
-    }
-
-    public AsyncOperation UnloadSceneAsync(Scene scene)
-    {
-        string sceneName = Scenes[scene];
-        return SceneManager.UnloadSceneAsync(sceneName);
-    }
-
+    /// <typeparam name="T">Component type to find on the canvas.</typeparam>
+    /// <param name="menu">Menu type.</param>
+    /// <returns>Component of type T.</returns>
     public T GetScript<T>(Menu menu)
     {
         if (_subMenus == null || !_subMenus.TryGetValue(menu, out var data))
@@ -306,17 +216,11 @@ public class MenuManager : MonoBehaviour
             throw new ArgumentException($"MenuManager: Menu {menu} not found!");
         }
 
+        if (data.Canvas == null)
+        {
+            throw new InvalidOperationException($"MenuManager: Canvas for menu {menu} is null!");
+        }
+
         return data.Canvas.GetComponent<T>();
-    }
-
-    public void StartCutscene()
-    {
-        _cutsceneObj.SetActive(true);
-        _cutsceneController.StartCutscene();
-    }
-
-    public void StopCutscene()
-    {
-        _cutsceneObj.SetActive(false);
     }
 }
