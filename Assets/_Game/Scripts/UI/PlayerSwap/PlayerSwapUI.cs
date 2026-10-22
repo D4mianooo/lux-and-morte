@@ -60,7 +60,6 @@ public class PlayerSwapUI : MonoBehaviour
 
     private PlayerManager _playerManager;
     private Sequence _animationSequence;
-    private bool _isP1Light = true; // Track which player is currently Light (starts with P1)
 
     private void Awake()
     {

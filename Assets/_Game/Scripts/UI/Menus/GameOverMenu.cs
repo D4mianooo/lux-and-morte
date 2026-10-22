@@ -36,7 +36,10 @@ public class GameOverMenu : MenuBase
     public void OnBtnMainMenu()
     {
         Debug.Log("Main Menu Button Clicked");
-        MenuManager.Instance.LoadMainMenuAndReset();
+        if (SceneManager.Instance != null)
+        {
+            SceneManager.Instance.LoadMainMenuAndReset();
+        }
     }
 
     public void UpdateText()
