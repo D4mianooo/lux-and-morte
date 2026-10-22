@@ -1,0 +1,86 @@
+name: Build Release Version
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for ${{ matrix.targetPlatform }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        targetPlatform:
+          - StandaloneOSX
+          - StandaloneWindows64
+          - StandaloneLinux64
+          - WebGL
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: Library
+          key: Library-${{ matrix.targetPlatform }}
+          restore-keys: Library-
+
+      - uses: jlumbroso/free-disk-space@v1.3.1
+
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          versioning: Semantic
+          targetPlatform: ${{ matrix.targetPlatform }}
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: ${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}
+          path: build
+
+  publish:
+    name: Publish for ${{ matrix.targetPlatform }}
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        targetPlatform:
+          - StandaloneOSX
+          - StandaloneWindows64
+          - StandaloneLinux64
+          - WebGL
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}
+          path: artifacts/${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}
+
+      - uses: vimtor/action-zip@v1.3
+        with:
+          files: artifacts/${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}
+          dest: ${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}.zip
+
+      - uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}.zip
+          asset_name: ${{ github.event.repository.name }}-${{ matrix.targetPlatform }}-${{ github.ref_name }}.zip
+          tag: ${{ github.ref_name }}
+          overwrite: true
+          make_latest: true
