@@ -172,21 +172,26 @@ public class CutsceneController : MonoBehaviour
 
     public void OnCutsceneFinish()
     {
-        if (MenuManager.Instance != null)
+        if (SceneManager.Instance != null)
         {
-            // Load game scene with loading screen, close all menus, don't open any menu
-            MenuManager.Instance.LoadScene(
-                MenuManager.Scene.Game,
+            SceneManager.Instance.LoadScene(
+                SceneManager.GameScene.Game,
                 menuToOpen: null,
                 resetGameState: false,
                 onComplete: () =>
                 {
-                    AudioManager.Instance.PlaySound(
-                        AudioManager.Instance.FMODEvents.Music.Music8Bit
-                    );
+                    if (AudioManager.Instance != null)
+                    {
+                        AudioManager.Instance.PlaySound(
+                            AudioManager.Instance.FMODEvents.Music.Music8Bit
+                        );
+                    }
 
-                    GameManager.Instance.EasyMovementEnabled =
-                        PlayerPrefs.GetInt("EasyMovement", 0) == 1;
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.EasyMovementEnabled =
+                            PlayerPrefs.GetInt("EasyMovement", 0) == 1;
+                    }
                 }
             );
         }
@@ -267,21 +272,26 @@ public class CutsceneController : MonoBehaviour
         dialogueText.gameObject.SetActive(true);
         skipText.gameObject.SetActive(false);
 
-        if (MenuManager.Instance != null)
+        if (SceneManager.Instance != null)
         {
-            // Load game scene with loading screen, close all menus, don't open any menu
-            MenuManager.Instance.LoadScene(
-                MenuManager.Scene.Game,
+            SceneManager.Instance.LoadScene(
+                SceneManager.GameScene.Game,
                 menuToOpen: null,
                 resetGameState: false,
                 onComplete: () =>
                 {
-                    AudioManager.Instance.PlaySound(
-                        AudioManager.Instance.FMODEvents.Music.Music8Bit
-                    );
+                    if (AudioManager.Instance != null)
+                    {
+                        AudioManager.Instance.PlaySound(
+                            AudioManager.Instance.FMODEvents.Music.Music8Bit
+                        );
+                    }
 
-                    GameManager.Instance.EasyMovementEnabled =
-                        PlayerPrefs.GetInt("EasyMovement", 0) == 1;
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.EasyMovementEnabled =
+                            PlayerPrefs.GetInt("EasyMovement", 0) == 1;
+                    }
                 }
             );
         }

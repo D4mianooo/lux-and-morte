@@ -11,9 +11,9 @@ public class GamePause : MenuBase
 
     public void OnBtnExit()
     {
-        if (MenuManager.Instance != null)
+        if (SceneManager.Instance != null)
         {
-            MenuManager.Instance.LoadMainMenuAndReset();
+            SceneManager.Instance.LoadMainMenuAndReset();
         }
     }
 

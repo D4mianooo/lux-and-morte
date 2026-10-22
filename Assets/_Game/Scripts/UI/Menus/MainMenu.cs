@@ -43,9 +43,28 @@ public class MainMenu : MenuBase
 
     public void OnBtnPlay()
     {
-        if (MenuManager.Instance != null)
+        if (SceneManager.Instance != null)
         {
-            MenuManager.Instance.StartCutscene();
+            SceneManager.Instance.LoadScene(
+                SceneManager.GameScene.Game,
+                menuToOpen: null,
+                resetGameState: false,
+                onComplete: () =>
+                {
+                    if (AudioManager.Instance != null)
+                    {
+                        AudioManager.Instance.PlaySound(
+                            AudioManager.Instance.FMODEvents.Music.Music8Bit
+                        );
+                    }
+
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.EasyMovementEnabled =
+                            PlayerPrefs.GetInt("EasyMovement", 0) == 1;
+                    }
+                }
+            );
         }
     }
 
