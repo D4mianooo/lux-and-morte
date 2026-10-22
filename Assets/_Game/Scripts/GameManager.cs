@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -19,9 +20,15 @@ public class GameManager : Singleton<GameManager>
     private PlayerSpawner _playerSpawner;
 
     [SerializeField]
-    private GridManager _gridManager; 
+    private GridManager _gridManager;
+
+    [SerializeField]
+    private CameraManager _cameraManager;
 
     public bool IsFrightenedShadowState = false;
+
+    [SerializeField] private ShadowPowerupType _currentShadowPowerupType = ShadowPowerupType.None;
+    [SerializeField] private LightPowerupType _currentLightPowerupType = LightPowerupType.None;
 
     public PlayerManager PlayerManager { get; private set; }
     public Grid Grid { get; private set; }
@@ -32,6 +39,23 @@ public class GameManager : Singleton<GameManager>
         set { _particleSystem = value; }
     }
     public GridManager GridManager => _gridManager;
+    public bool EasyMovementEnabled { get; set; } = false;
+
+    public CameraManager CameraManager => _cameraManager;
+
+    public ShadowPowerupType CurrentShadowPowerupType
+    {
+        get => _currentShadowPowerupType;
+        set => _currentShadowPowerupType = value;
+    }
+
+    public LightPowerupType CurrentLightPowerupType
+    {
+        get => _currentLightPowerupType;
+        set => _currentLightPowerupType = value;
+    }
+
+    public bool IsLightWinningRound = false;
 
     public void RegisterGrid(Grid newGrid)
     {
@@ -50,7 +74,6 @@ public class GameManager : Singleton<GameManager>
             Grid.OnAllLightTiles += GameManager_OnAllLightTiles;
         }
     }
-
 
     public void BtnMainMenu()
     {
@@ -102,14 +125,31 @@ public class GameManager : Singleton<GameManager>
 
     private void GameManager_OnNewLightTile(object sender, EventArgs e)
     {
-        PlayerManager
-            .Players.FirstOrDefault(p => p.Role == PlayerManager.PlayerRole.Light)
-            ?.PlayerScore.RoundScores.FirstOrDefault(r => r.RoundNumber == Timer.CurrentRound)
-            ?.AddLightTile();
+        var player = PlayerManager.Players
+            .FirstOrDefault(p => p.Role == PlayerManager.PlayerRole.Light);
+
+        if (player == null)
+            return;
+
+        var roundScore = player.PlayerScore.RoundScores
+            .FirstOrDefault(r => r.RoundNumber == Timer.CurrentRound);
+
+        if (roundScore == null)
+            return;
+
+        roundScore.AddLightTile();
+        if (_currentLightPowerupType == LightPowerupType.SilentTreatment) {
+            player.RaisePlayerScoreChanged(player.PlayerScore.RoundScores[0].PointsPerLightTile + 1);
+        }
+        else { 
+            player.RaisePlayerScoreChanged(player.PlayerScore.RoundScores[0].PointsPerLightTile);
+        }
     }
 
     private void OnRoundEnd(object sender, EventArgs e)
     {
+        IsLightWinningRound = false;
+
         // Swap players and update score
         PlayerManager.SwapPlayerRoles(
             PlayerManager.PlayerRole.Light,
@@ -131,6 +171,12 @@ public class GameManager : Singleton<GameManager>
 
     private void GameManager_OnAllLightTiles(object sender, EventArgs e)
     {
+        IsFrightenedShadowState = true;
+
+        var player = PlayerManager.GetPlayerOfType(PlayerManager.PlayerRole.Light);
+        LightPlayerController lightPlayerController = player.GetComponentInChildren<LightPlayerController>();
+        lightPlayerController.HandleRoundWin();
+
         // Score bonus for time left
         // (Get this round because round has not yet advanced)
         // Claculate the bonus before round end to preserve Timer.RoundTime
@@ -139,6 +185,13 @@ public class GameManager : Singleton<GameManager>
             ?.PlayerScore.RoundScores.First(r => r.RoundNumber == Timer.CurrentRound)
             ?.SetTimeBonus(Timer.RoundTime, Timer.RoundDuration);
 
+        StartCoroutine(AllLightTilesEndRound());
+    }
+
+    private IEnumerator AllLightTilesEndRound()
+    {
+        AudioManager.Instance.PlaySound(AudioManager.Instance.FMODEvents.SFX.Win);
+        yield return new WaitForSeconds(3);
         Timer.EndRound();
     }
 

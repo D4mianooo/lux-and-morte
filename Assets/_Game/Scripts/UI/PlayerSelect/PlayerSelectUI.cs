@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using DG.Tweening;
 using TMPro;
-using UnityEditor.EditorTools;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.XR;
 
 public class PlayerSelectUI : MonoBehaviour
 {
@@ -139,6 +137,56 @@ public class PlayerSelectUI : MonoBehaviour
     private Ease _playerReadyScaleEase = Ease.InOutSine;
     #endregion
 
+    #region Button Prompts
+    [Header("Button Prompts")]
+    [Tooltip("Optional: Image component for P1 confirm button icon")]
+    [SerializeField]
+    private Image _p1ConfirmButtonIcon;
+
+    [Tooltip("Optional: Image component for P2 confirm button icon")]
+    [SerializeField]
+    private Image _p2ConfirmButtonIcon;
+
+    [Tooltip("Optional: Sprite for Xbox South button (A)")]
+    [SerializeField]
+    private Sprite _xboxSouthButtonSprite;
+
+    [Tooltip("Optional: Sprite for PlayStation South button (X)")]
+    [SerializeField]
+    private Sprite _playstationSouthButtonSprite;
+
+    [Tooltip("Optional: Sprite for Xbox L2 trigger (LT)")]
+    [SerializeField]
+    private Sprite _xboxL2TriggerSprite;
+
+    [Tooltip("Optional: Sprite for PlayStation L2 trigger (L2)")]
+    [SerializeField]
+    private Sprite _playstationL2TriggerSprite;
+
+    [Tooltip("Optional: Sprite for Xbox R2 trigger (RT)")]
+    [SerializeField]
+    private Sprite _xboxR2TriggerSprite;
+
+    [Tooltip("Optional: Sprite for PlayStation R2 trigger (R2)")]
+    [SerializeField]
+    private Sprite _playstationR2TriggerSprite;
+    #endregion
+
+    #region Shake Animation
+    [Header("Name Conflict Shake Animation")]
+    [Tooltip("Duration of the shake animation in seconds")]
+    [SerializeField]
+    private float _nameConflictShakeDuration = 0.5f;
+
+    [Tooltip("Intensity/strength of the shake animation")]
+    [SerializeField]
+    private float _nameConflictShakeStrength = 10f;
+
+    [Tooltip("How much the shake will vibrate")]
+    [SerializeField]
+    private int _nameConflictShakeVibrato = 20;
+    #endregion
+
     [Header("General")]
     [SerializeField]
     private CanvasGroup _canvasGroup;
@@ -150,9 +198,16 @@ public class PlayerSelectUI : MonoBehaviour
         new Dictionary<PlayerManager.PlayerIndex, PlayerManager.PlayerRole>();
     private Dictionary<PlayerManager.PlayerIndex, bool> _playerReady =
         new Dictionary<PlayerManager.PlayerIndex, bool>();
+    private Dictionary<
+        PlayerManager.PlayerIndex,
+        PlayerSpawner.ControllerType
+    > _playerControllerTypes =
+        new Dictionary<PlayerManager.PlayerIndex, PlayerSpawner.ControllerType>();
 
     private Tween _p1Tween;
     private Tween _p2Tween;
+    private Tween _p1ShakeTween;
+    private Tween _p2ShakeTween;
 
     private PlayerManager.PlayerRole _p1IndicatorState = PlayerManager.PlayerRole.None;
     private PlayerManager.PlayerRole _p2IndicatorState = PlayerManager.PlayerRole.None;
@@ -201,6 +256,8 @@ public class PlayerSelectUI : MonoBehaviour
         PlayerSpawner.OnRoleSelectionReleased += HandleRoleSelectionReleased;
         PlayerSpawner.OnPlayersReadyToSpawn += HandlePlayersReadyToSpawn;
         PlayerSpawner.OnPlayerNameChanged += HandlePlayerNameChanged;
+        PlayerSpawner.OnControllerTypeDetected += HandleControllerTypeDetected;
+        PlayerSpawner.OnPlayerNameConflict += HandlePlayerNameConflict;
     }
 
     private void OnDisable()
@@ -210,6 +267,8 @@ public class PlayerSelectUI : MonoBehaviour
         PlayerSpawner.OnRoleSelectionReleased -= HandleRoleSelectionReleased;
         PlayerSpawner.OnPlayersReadyToSpawn -= HandlePlayersReadyToSpawn;
         PlayerSpawner.OnPlayerNameChanged -= HandlePlayerNameChanged;
+        PlayerSpawner.OnControllerTypeDetected -= HandleControllerTypeDetected;
+        PlayerSpawner.OnPlayerNameConflict -= HandlePlayerNameConflict;
     }
 
     private void OnDestroy()
@@ -219,11 +278,126 @@ public class PlayerSelectUI : MonoBehaviour
         PlayerSpawner.OnRoleSelectionReleased -= HandleRoleSelectionReleased;
         PlayerSpawner.OnPlayersReadyToSpawn -= HandlePlayersReadyToSpawn;
         PlayerSpawner.OnPlayerNameChanged -= HandlePlayerNameChanged;
+        PlayerSpawner.OnControllerTypeDetected -= HandleControllerTypeDetected;
+        PlayerSpawner.OnPlayerNameConflict -= HandlePlayerNameConflict;
+    }
+
+    private void HandlePlayerNameConflict(
+        object sender,
+        PlayerSpawner.PlayerNameConflictEventArgs e
+    )
+    {
+        if (e.PlayerIndex == PlayerManager.PlayerIndex.P1)
+        {
+            // Kill any existing shake tween to prevent interruption
+            _p1ShakeTween?.Kill();
+
+            // Store the original position before shaking
+            Vector3 originalPosition = _p1PlayerNameBar.localPosition;
+
+            // Create and track the shake tween
+            _p1ShakeTween = _p1PlayerNameBar
+                .DOShakePosition(
+                    _nameConflictShakeDuration,
+                    _nameConflictShakeStrength,
+                    _nameConflictShakeVibrato
+                )
+                .OnComplete(() =>
+                {
+                    // Restore original position after shake completes
+                    _p1PlayerNameBar.localPosition = originalPosition;
+                    _p1ShakeTween = null;
+                });
+        }
+        else if (e.PlayerIndex == PlayerManager.PlayerIndex.P2)
+        {
+            // Kill any existing shake tween to prevent interruption
+            _p2ShakeTween?.Kill();
+
+            // Store the original position before shaking
+            Vector3 originalPosition = _p2PlayerNameBar.localPosition;
+
+            // Create and track the shake tween
+            _p2ShakeTween = _p2PlayerNameBar
+                .DOShakePosition(
+                    _nameConflictShakeDuration,
+                    _nameConflictShakeStrength,
+                    _nameConflictShakeVibrato
+                )
+                .OnComplete(() =>
+                {
+                    // Restore original position after shake completes
+                    _p2PlayerNameBar.localPosition = originalPosition;
+                    _p2ShakeTween = null;
+                });
+        }
     }
 
     private void HandleRoleSelectionStarted(object sender, PlayerSpawner.RoleSelectionEventArgs e)
     {
         UpdateRoleSelectionVisuals(e.PlayerIndex, e.PlayerRole);
+    }
+
+    private void HandleControllerTypeDetected(
+        object sender,
+        PlayerSpawner.ControllerTypeDetectedEventArgs e
+    )
+    {
+        // Store the controller type
+        _playerControllerTypes[e.PlayerIndex] = e.ControllerType;
+
+        // Update confirm button icon based on controller type
+        Image confirmButtonIcon =
+            e.PlayerIndex == PlayerManager.PlayerIndex.P1
+                ? _p1ConfirmButtonIcon
+                : _p2ConfirmButtonIcon;
+
+        if (confirmButtonIcon != null)
+        {
+            Sprite buttonSprite =
+                e.ControllerType == PlayerSpawner.ControllerType.Xbox
+                    ? _xboxSouthButtonSprite
+                    : _playstationSouthButtonSprite;
+
+            if (buttonSprite != null)
+            {
+                confirmButtonIcon.sprite = buttonSprite;
+            }
+        }
+
+        // Update L2/R2 trigger icons based on controller type
+        Image l2Icon = e.PlayerIndex == PlayerManager.PlayerIndex.P1 ? _p1L2Image : _p2L2Image;
+        Image r2Icon = e.PlayerIndex == PlayerManager.PlayerIndex.P1 ? _p1R2Image : _p2R2Image;
+
+        if (l2Icon != null)
+        {
+            Sprite l2Sprite =
+                e.ControllerType == PlayerSpawner.ControllerType.Xbox
+                    ? _xboxL2TriggerSprite
+                    : _playstationL2TriggerSprite;
+
+            if (l2Sprite != null)
+            {
+                l2Icon.sprite = l2Sprite;
+            }
+        }
+
+        if (r2Icon != null)
+        {
+            Sprite r2Sprite =
+                e.ControllerType == PlayerSpawner.ControllerType.Xbox
+                    ? _xboxR2TriggerSprite
+                    : _playstationR2TriggerSprite;
+
+            if (r2Sprite != null)
+            {
+                r2Icon.sprite = r2Sprite;
+            }
+        }
+
+        Debug.Log(
+            $"Updated button icons for Player {e.PlayerIndex} to {e.ControllerType} controller layout"
+        );
     }
 
     private void HandleRoleSelectionChanged(object sender, PlayerSpawner.RoleSelectionEventArgs e)

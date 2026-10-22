@@ -9,12 +9,12 @@ public class PowerupAnimation : MonoBehaviour
 
     private Sequence _rotationSequence;
 
-    private void OnEnable()
+    public void StartAnimation()
     {
         StartRotation();
     }
 
-    private void OnDisable()
+    public void StopAnimation()
     {
         _rotationSequence?.Kill();
     }

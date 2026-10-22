@@ -45,6 +45,9 @@ public class ShadowEatenState : IShadowState
             )
             .AddSkullKill();
 
+        var player = GameManager.Instance.PlayerManager.Players.FirstOrDefault(p => p.Role == PlayerManager.PlayerRole.Light);
+        player.RaisePlayerScoreChanged(player.PlayerScore.RoundScores[0].PointsPerSkullKill);
+
         _homeTargets = GameManager.Instance.Grid.GetShadowHomeTargets();
         _currentTargetIndex = 0;
         _lastDirection = Vector2Int.zero;

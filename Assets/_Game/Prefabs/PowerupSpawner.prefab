@@ -44,8 +44,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29dc3b45eb8c598488ed1f3c21aa1559, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PowerupSpawner
-  _spawnType: 0
-  _spawnTimeRange: {x: 3, y: 8}
-  _powerupCount: 14
-  _powerupPrefab: {fileID: 0}
-  _grid: {fileID: 0}
+  _firstPowerupSpawnTime: 5
+  _spawnDelta: 3
+  _powerupCount: 3
+  _powerupPrefab: {fileID: 8212082713606014649, guid: 4cad5419859f7b54ba98ad0dffdfab6f, type: 3}
+  _powerupMaterials:
+  - {fileID: 2100000, guid: 552591a887ebff5448cd65665d068049, type: 2}
+  - {fileID: 2100000, guid: 6b6fdb0da43b8c14fb819aef06540b6d, type: 2}
+  - {fileID: 2100000, guid: a61faba3acc6dcb40871b4381f0d715d, type: 2}
+  - {fileID: 2100000, guid: 29ee50d1486b18e40883e077f1dab572, type: 2}
+  _lightPowerups:
+  - _powerupType: 2
+    _duration: 5
+    material: {fileID: 2100000, guid: 552591a887ebff5448cd65665d068049, type: 2}
+  - _powerupType: 3
+    _duration: 5
+    material: {fileID: 2100000, guid: 6b6fdb0da43b8c14fb819aef06540b6d, type: 2}
+  _shadowPowerups:
+  - _powerupType: 1
+    _duration: 3
+    material: {fileID: 2100000, guid: 29ee50d1486b18e40883e077f1dab572, type: 2}
+  - _powerupType: 2
+    _duration: 3
+    material: {fileID: 2100000, guid: a61faba3acc6dcb40871b4381f0d715d, type: 2}

@@ -61,10 +61,12 @@ public class ShadowController : MonoBehaviour
     private ShadowPlayerController _owner;
     private bool _canBeSwitchedTo = true;
 
-    private const string AnimatorBoolIsMovingBottom = "IsMovingBottom";
-    private const string AnimatorBoolIsMovingUp = "IsMovingUp";
-    private const string AnimatorBoolIsMovingRight = "IsMovingRight";
-    private const string AnimatorBoolIsMovingLeft = "IsMovingLeft";
+    public const string AnimatorBoolIsMovingBottom = "IsMovingBottom";
+    public const string AnimatorBoolIsMovingUp = "IsMovingUp";
+    public const string AnimatorBoolIsMovingRight = "IsMovingRight";
+    public const string AnimatorBoolIsMovingLeft = "IsMovingLeft";
+
+    private bool _isPushingPlayer;
 
     public bool IsShadowActive
     {
@@ -102,6 +104,8 @@ public class ShadowController : MonoBehaviour
     public bool EnableAI => _enableAIMovement;
     public float DirectionChangeDelay => _directionChangeDelay;
     public ShadowType Type => _shadowType;
+    public Animator Animator => _animator;
+    public Animator AnimatorFace => _faceAnimator;
     #endregion
 
     #region State Management
@@ -160,7 +164,8 @@ public class ShadowController : MonoBehaviour
             _grid,
             _speed,
             _centerThreshold,
-            _snapSpeedMultiplier
+            _snapSpeedMultiplier,
+            GameManager.Instance.EasyMovementEnabled
         );
         _shadowBehaviorCycle = GetComponent<ShadowBehaviorCycle>();
     }
@@ -185,7 +190,8 @@ public class ShadowController : MonoBehaviour
             _grid,
             _speed,
             _centerThreshold,
-            _snapSpeedMultiplier
+            _snapSpeedMultiplier,
+            GameManager.Instance.EasyMovementEnabled
         );
     }
 
@@ -238,9 +244,13 @@ public class ShadowController : MonoBehaviour
             }
             else
             {
-                if (_isShadowActive)
+                if ((_isShadowActive || GameManager.Instance.CurrentShadowPowerupType == ShadowPowerupType.SarcasticSmile) 
+                    && !GameManager.Instance.IsLightWinningRound)
                 {
-                    GameManager.Instance.Timer.EndRound();
+                    var player = GameManager.Instance.PlayerManager.GetPlayerOfType(PlayerManager.PlayerRole.Light);
+                    LightPlayerController lightPlayerController = player.GetComponentInChildren<LightPlayerController>();
+
+                    StartCoroutine(PushPlayerAndEndRound(lightPlayerController));
                 }
                 else
                 {
@@ -250,6 +260,29 @@ public class ShadowController : MonoBehaviour
                 }
             }
         }
+    }
+
+    private IEnumerator PushPlayerAndEndRound(LightPlayerController light)
+    {
+        if (_isPushingPlayer)
+            yield break;
+
+        _isPushingPlayer = true;
+
+        foreach (var shadow in _owner.Shadows)
+        {
+            shadow.GetComponent<ShadowController>().SetState(new ShadowEndRoundState());
+        }
+
+        light.Movement.IsLocked = true;
+
+        light.HandleRoundLose();
+        AudioManager.Instance.PlaySound(AudioManager.Instance.FMODEvents.SFX.GameOver);
+
+        yield return new WaitForSeconds(3);
+        GameManager.Instance.Timer.EndRound();
+
+        _isPushingPlayer = false;
     }
 
     private void OnTriggerExit2D(Collider2D collision)
@@ -263,7 +296,6 @@ public class ShadowController : MonoBehaviour
             {
                 StartCoroutine(LightPlayerSpeedReset(lightPlayerController));
             }
-
         }
     }
 
@@ -391,7 +423,8 @@ public class ShadowController : MonoBehaviour
 
     public void OnRevive()
     {
-        if (Owner == null) return;
+        if (Owner == null)
+            return;
 
         if (Owner.AreAllShadowsEaten())
         {
@@ -405,5 +438,4 @@ public class ShadowController : MonoBehaviour
         yield return null;
         Owner.SetActiveShadow(this);
     }
-
 }

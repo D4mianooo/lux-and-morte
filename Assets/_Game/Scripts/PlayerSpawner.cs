@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Animations;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Utilities;
 using UnityEngine.Rendering.Universal;
@@ -26,12 +24,25 @@ public class PlayerSpawner : MonoBehaviour
         public string NewName;
     }
 
+    public class ControllerTypeDetectedEventArgs : EventArgs
+    {
+        public PlayerManager.PlayerIndex PlayerIndex;
+        public ControllerType ControllerType;
+    }
+
+    public class PlayerNameConflictEventArgs : EventArgs
+    {
+        public PlayerManager.PlayerIndex PlayerIndex;
+    }
+
     public static event EventHandler<RoleSelectionEventArgs> OnRoleSelectionStarted;
     public static event EventHandler<RoleSelectionEventArgs> OnRoleSelectionChanged;
     public static event EventHandler<RoleSelectionEventArgs> OnRoleSelectionReleased;
+    public static event EventHandler<PlayerNameConflictEventArgs> OnPlayerNameConflict;
     public static event EventHandler OnPlayersReadyToSpawn;
 
     public static event EventHandler<PlayerNameChangeEventArgs> OnPlayerNameChanged;
+    public static event EventHandler<ControllerTypeDetectedEventArgs> OnControllerTypeDetected;
     #endregion
 
     #region Fields
@@ -39,7 +50,8 @@ public class PlayerSpawner : MonoBehaviour
     [SerializeField]
     private PlayerInputManager _playerInputManager;
 
-    [SerializeField] GridManager _gridManager;
+    [SerializeField]
+    GridManager _gridManager;
 
     private Grid _grid;
 
@@ -59,6 +71,10 @@ public class PlayerSpawner : MonoBehaviour
     [Header("Role Selection Settings")]
     [SerializeField]
     private float _holdDuration = 1f;
+
+    [Tooltip("Cooldown between confirmation attempts in seconds (should match shake duration)")]
+    [SerializeField]
+    private float _confirmationCooldown = 0.5f;
 
     [Header("D-Pad Input Settings")]
     [SerializeField]
@@ -86,6 +102,13 @@ public class PlayerSpawner : MonoBehaviour
         { PlayerManager.PlayerRole.Skull, Color.red },
     };
 
+    public enum ControllerType
+    {
+        PlayStation,
+        Xbox,
+        Unknown,
+    }
+
     private class JoinRequest
     {
         public Gamepad Gamepad;
@@ -95,6 +118,8 @@ public class PlayerSpawner : MonoBehaviour
         public bool IsReady = false;
         public PlayerManager.PlayerIndex PlayerIndex;
         public string PlayerName = "";
+        public ControllerType ControllerType = ControllerType.Unknown;
+        public float LastConfirmAttemptTime = -999f;
     }
 
     private class DPadInputState
@@ -102,6 +127,8 @@ public class PlayerSpawner : MonoBehaviour
         public Gamepad Gamepad;
         public bool WasUpPressed;
         public bool WasDownPressed;
+        public bool WasLeftPressed;
+        public bool WasRightPressed;
         public float UpHoldTime;
         public float DownHoldTime;
         public float UpNextTriggerTime;
@@ -169,11 +196,9 @@ public class PlayerSpawner : MonoBehaviour
             )
                 ProcessGamepadJoin(leftTrigger, rightTrigger, gamepad);
 
-            bool addChar = gamepad.buttonSouth.wasPressedThisFrame;
-            bool removeChar = gamepad.buttonEast.wasPressedThisFrame;
-            bool confirmName = gamepad.buttonNorth.wasPressedThisFrame;
+            bool confirmName = gamepad.buttonSouth.wasPressedThisFrame;
 
-            // Handle name confirmation (button north/Y)
+            // Handle name confirmation (button South - A on Xbox, X on PS5)
             if (confirmName)
             {
                 ProcessNameConfirmation(gamepad);
@@ -182,11 +207,24 @@ public class PlayerSpawner : MonoBehaviour
             // Handle D-pad with delay and acceleration
             bool shouldProcessUp = false;
             bool shouldProcessDown = false;
-            ProcessDPadInput(gamepad, out shouldProcessUp, out shouldProcessDown);
+            bool shouldProcessLeft = false;
+            bool shouldProcessRight = false;
+            ProcessDPadInput(
+                gamepad,
+                out shouldProcessUp,
+                out shouldProcessDown,
+                out shouldProcessLeft,
+                out shouldProcessRight
+            );
 
-            if (shouldProcessUp || shouldProcessDown || addChar || removeChar)
+            if (shouldProcessUp || shouldProcessDown || shouldProcessLeft || shouldProcessRight)
             {
-                ProcessGamepadNameChange(shouldProcessUp, addChar, removeChar, gamepad);
+                ProcessGamepadNameChange(
+                    shouldProcessUp,
+                    shouldProcessLeft,
+                    shouldProcessRight,
+                    gamepad
+                );
             }
         }
     }
@@ -197,14 +235,20 @@ public class PlayerSpawner : MonoBehaviour
     private void ProcessDPadInput(
         Gamepad gamepad,
         out bool shouldProcessUp,
-        out bool shouldProcessDown
+        out bool shouldProcessDown,
+        out bool shouldProcessLeft,
+        out bool shouldProcessRight
     )
     {
         shouldProcessUp = false;
         shouldProcessDown = false;
+        shouldProcessLeft = false;
+        shouldProcessRight = false;
 
         bool dpadUp = gamepad.dpad.up.isPressed;
         bool dpadDown = gamepad.dpad.down.isPressed;
+        bool dpadLeft = gamepad.dpad.left.isPressed;
+        bool dpadRight = gamepad.dpad.right.isPressed;
 
         // Find or create state for this gamepad
         DPadInputState state = _dpadStates.FirstOrDefault(s => s.Gamepad == gamepad);
@@ -216,7 +260,7 @@ public class PlayerSpawner : MonoBehaviour
 
         float currentTime = Time.time;
 
-        // Handle Up button
+        // Handle Up button (cycle character forward)
         if (dpadUp)
         {
             if (!state.WasUpPressed)
@@ -248,7 +292,7 @@ public class PlayerSpawner : MonoBehaviour
             state.UpHoldTime = 0f;
         }
 
-        // Handle Down button
+        // Handle Down button (cycle character backward)
         if (dpadDown)
         {
             if (!state.WasDownPressed)
@@ -279,6 +323,69 @@ public class PlayerSpawner : MonoBehaviour
             state.WasDownPressed = false;
             state.DownHoldTime = 0f;
         }
+
+        // Handle Left button (remove character)
+        if (dpadLeft && !state.WasLeftPressed)
+        {
+            shouldProcessLeft = true;
+            state.WasLeftPressed = true;
+        }
+        else if (!dpadLeft)
+        {
+            state.WasLeftPressed = false;
+        }
+
+        // Handle Right button (add character)
+        if (dpadRight && !state.WasRightPressed)
+        {
+            shouldProcessRight = true;
+            state.WasRightPressed = true;
+        }
+        else if (!dpadRight)
+        {
+            state.WasRightPressed = false;
+        }
+    }
+
+    /// <summary>
+    /// Detects the controller type based on the gamepad device name.
+    /// </summary>
+    private ControllerType DetectControllerType(Gamepad gamepad)
+    {
+        string deviceName = gamepad.name.ToLower();
+        string displayName = gamepad.displayName.ToLower();
+
+        // Check for PlayStation controllers
+        if (
+            deviceName.Contains("dualshock")
+            || deviceName.Contains("dualsense")
+            || deviceName.Contains("playstation")
+            || deviceName.Contains("ps4")
+            || deviceName.Contains("ps5")
+            || displayName.Contains("playstation")
+            || displayName.Contains("dualshock")
+            || displayName.Contains("dualsense")
+        )
+        {
+            Debug.Log($"Detected PlayStation controller: {gamepad.displayName}");
+            return ControllerType.PlayStation;
+        }
+
+        // Check for Xbox controllers
+        if (
+            deviceName.Contains("xbox")
+            || displayName.Contains("xbox")
+            || deviceName.Contains("xinput")
+            || displayName.Contains("xinput")
+        )
+        {
+            Debug.Log($"Detected Xbox controller: {gamepad.displayName}");
+            return ControllerType.Xbox;
+        }
+
+        // Default to PlayStation for unknown controllers
+        Debug.Log($"Unknown controller type '{gamepad.displayName}', defaulting to PlayStation");
+        return ControllerType.PlayStation;
     }
 
     private void ProcessGamepadJoin(float leftTrigger, float rightTrigger, Gamepad gamepad)
@@ -303,6 +410,7 @@ public class PlayerSpawner : MonoBehaviour
             PlayerIndex = availableIndex.Value,
             SelectedRole = PlayerManager.PlayerRole.None,
             PlayerName = "A",
+            ControllerType = DetectControllerType(gamepad),
         };
 
         if (
@@ -342,17 +450,27 @@ public class PlayerSpawner : MonoBehaviour
                 IsReady = newRequest.IsReady,
             }
         );
+
+        // Fire controller type detected event
+        OnControllerTypeDetected?.Invoke(
+            this,
+            new ControllerTypeDetectedEventArgs
+            {
+                PlayerIndex = newRequest.PlayerIndex,
+                ControllerType = newRequest.ControllerType,
+            }
+        );
     }
 
     private void ProcessGamepadNameChange(
-        bool forward,
-        bool addChar,
+        bool cycleForward,
         bool removeChar,
+        bool addChar,
         Gamepad gamepad
     )
     {
         var request = _activeRequests.FirstOrDefault(r => r.Gamepad == gamepad);
-        if (request == null || !request.IsConfirmed)
+        if (request == null || !request.IsConfirmed || request.IsReady)
             return;
 
         if (request.PlayerName.Length == 0)
@@ -360,10 +478,13 @@ public class PlayerSpawner : MonoBehaviour
             request.PlayerName = "A";
         }
 
-        if (!addChar && !removeChar)
+        string previousName = request.PlayerName;
+
+        // D-pad Up/Down: Cycle current character
+        if (cycleForward || (!cycleForward && !removeChar && !addChar))
         {
             string name = request.PlayerName.Remove(request.PlayerName.Length - 1);
-            int dir = forward ? 1 : -1;
+            int dir = cycleForward ? 1 : -1;
             request.PlayerName =
                 name
                 + (char)(
@@ -371,13 +492,33 @@ public class PlayerSpawner : MonoBehaviour
                     + 65
                 ); // Cycle last character
         }
-        else if (addChar && request.PlayerName.Length < 12)
+        // D-pad Right: Add character
+        else if (addChar && request.PlayerName.Length < 8)
         {
             request.PlayerName += "A";
         }
+        // D-pad Left: Remove character
         else if (removeChar && request.PlayerName.Length > 1)
         {
             request.PlayerName = request.PlayerName.Remove(request.PlayerName.Length - 1);
+        }
+
+        // Check for nickname duplication
+        var otherRequest = _activeRequests.FirstOrDefault(r => r != request && r.IsReady);
+        if (
+            otherRequest != null
+            && request.PlayerName.Equals(
+                otherRequest.PlayerName,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            // Revert to previous name if it matches the other player's locked nickname
+            request.PlayerName = previousName;
+            Debug.Log(
+                $"Player {request.PlayerIndex} tried to use nickname '{otherRequest.PlayerName}' but it's already taken by Player {otherRequest.PlayerIndex}"
+            );
+            return;
         }
 
         OnPlayerNameChanged?.Invoke(
@@ -395,6 +536,36 @@ public class PlayerSpawner : MonoBehaviour
         var request = _activeRequests.FirstOrDefault(r => r.Gamepad == gamepad);
         if (request == null || !request.IsConfirmed || request.IsReady)
             return;
+
+        // Check cooldown to prevent spam
+        float timeSinceLastAttempt = Time.time - request.LastConfirmAttemptTime;
+        if (timeSinceLastAttempt < _confirmationCooldown)
+        {
+            return;
+        }
+
+        // Update last attempt time
+        request.LastConfirmAttemptTime = Time.time;
+
+        // Check for nickname duplication before confirming
+        var otherRequest = _activeRequests.FirstOrDefault(r => r != request && r.IsReady);
+        if (
+            otherRequest != null
+            && request.PlayerName.Equals(
+                otherRequest.PlayerName,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            Debug.Log(
+                $"Player {request.PlayerIndex} cannot ready up with nickname '{request.PlayerName}' - already taken by Player {otherRequest.PlayerIndex}"
+            );
+            OnPlayerNameConflict?.Invoke(
+                this,
+                new PlayerNameConflictEventArgs { PlayerIndex = request.PlayerIndex }
+            );
+            return;
+        }
 
         // Set IsReady to true when player confirms their name
         request.IsReady = true;
@@ -655,5 +826,13 @@ public class PlayerSpawner : MonoBehaviour
 
         Debug.Log($"Shadow player spawned for {playerIndex}.");
     }
+
+    public PlayerManager.PlayerRole GetRoleForPlayer(PlayerManager.PlayerIndex index)
+    {
+        var request = _activeRequests.FirstOrDefault(r => r.PlayerIndex == index);
+
+        return request != null ? request.SelectedRole : PlayerManager.PlayerRole.None;
+    }
+
     #endregion
 }

@@ -18,23 +18,34 @@ public class MainMenu : MenuBase
     [SerializeField]
     private Button _btnExit;
 
+    public void Start()
+    {
+        int resolutionIndex = PlayerPrefs.GetInt("ResolutionIndex", 0);
+        int fullscreenMode = PlayerPrefs.GetInt(
+            "FullscreenMode",
+            (int)FullScreenMode.ExclusiveFullScreen
+        );
+
+        // Apply saved settings
+        Screen.fullScreenMode = (FullScreenMode)fullscreenMode;
+        Resolution[] resolutions = Screen.resolutions;
+        if (resolutionIndex >= 0 && resolutionIndex < resolutions.Length)
+        {
+            Resolution resolution = resolutions[resolutionIndex];
+            Screen.SetResolution(
+                resolution.width,
+                resolution.height,
+                Screen.fullScreenMode,
+                resolution.refreshRateRatio
+            );
+        }
+    }
+
     public void OnBtnPlay()
     {
         if (MenuManager.Instance != null)
         {
-            // Load game scene with loading screen, close all menus, don't open any menu
-            MenuManager.Instance.LoadScene(
-                MenuManager.Scene.Game,
-                menuToOpen: null,
-                resetGameState: false,
-                onComplete: () =>
-                {
-                    // NOTE: Start playing game music, we don't store GUID for now
-                    AudioManager.Instance.PlaySound(
-                        AudioManager.Instance.FMODEvents.Music.Music8Bit
-                    );
-                }
-            );
+            MenuManager.Instance.StartCutscene();
         }
     }
 

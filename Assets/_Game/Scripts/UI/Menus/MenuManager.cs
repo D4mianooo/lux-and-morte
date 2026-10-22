@@ -37,6 +37,9 @@ public class MenuManager : MonoBehaviour
     [SerializeField]
     private LoadingScreen _loadingScreen;
 
+    [SerializeField]
+    private CutsceneController _cutsceneController;
+
     [Header("Menu GameObjects")]
     [SerializeField]
     private MenuData _mainMenu;
@@ -56,6 +59,9 @@ public class MenuManager : MonoBehaviour
     [SerializeField]
     private MenuData _gameOverMenu;
 
+    [SerializeField]
+    private GameObject _cutsceneObj;
+
     private Dictionary<Menu, MenuData> _subMenus;
     private Stack<Tuple<Menu, MenuData>> _openedMenus = new Stack<Tuple<Menu, MenuData>>();
 
@@ -64,6 +70,8 @@ public class MenuManager : MonoBehaviour
         { Scene.MainMenu, "MainMenu" },
         { Scene.Game, "SampleScene" },
     };
+
+    public CutsceneController CutsceneController => _cutsceneController;
 
     private void Awake()
     {
@@ -299,5 +307,16 @@ public class MenuManager : MonoBehaviour
         }
 
         return data.Canvas.GetComponent<T>();
+    }
+
+    public void StartCutscene()
+    {
+        _cutsceneObj.SetActive(true);
+        _cutsceneController.StartCutscene();
+    }
+
+    public void StopCutscene()
+    {
+        _cutsceneObj.SetActive(false);
     }
 }

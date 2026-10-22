@@ -266,6 +266,7 @@ public class ShadowSwitchUI : MonoBehaviour
     /// </summary>
     private void OnLBSwitch()
     {
+        if (_isRotatingIndicators) return;
         StartCoroutine(TryRotateUntilMiddleActive(+1, _l1));
     }
 
@@ -277,6 +278,7 @@ public class ShadowSwitchUI : MonoBehaviour
     /// </summary>
     private void OnRBSwitch()
     {
+        if (_isRotatingIndicators) return;
         StartCoroutine(TryRotateUntilMiddleActive(-1, _r1));
     }
 
@@ -326,6 +328,7 @@ public class ShadowSwitchUI : MonoBehaviour
                         yield return new WaitForSeconds(0.1f);
                         SetIndicatorsVisual(RotationVisual.Base);
                         AnimateMiddleIndicatorImpact();
+                        _isRotatingIndicators = false;
                         yield break;
                     }
                 }
@@ -335,6 +338,7 @@ public class ShadowSwitchUI : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
         SnapIndicatorsToNearestBackup();
         SetIndicatorsVisual(RotationVisual.Base);
+        _isRotatingIndicators = false;
     }
 
     /// <summary>

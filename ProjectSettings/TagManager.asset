@@ -16,7 +16,7 @@ TagManager:
   - UI
   - Shadow
   - LightPlayer
-  - 
+  - Emissive
   - 
   - 
   - 
@@ -55,6 +55,9 @@ TagManager:
     locked: 0
   - name: Player
     uniqueID: 3176514875
+    locked: 0
+  - name: PlayerShadow
+    uniqueID: 438186269
     locked: 0
   m_RenderingLayers:
   - Default

@@ -1,11 +1,8 @@
-﻿using NUnit.Framework;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Rendering.LookDev;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Handles the player's control over multiple shadows/ghosts.
@@ -15,10 +12,17 @@ public class ShadowPlayerController : PlayerController
 {
     #region Inspector Fields
     [Header("Shadow Settings")]
-    [SerializeField] private GameObject _shadowPrefab;
-    [SerializeField] private int _shadowCount = 3;
-    [SerializeField] private float _spawnDelay = 1f;
-    [SerializeField] private Material _laserMaterial;
+    [SerializeField]
+    private GameObject _shadowPrefab;
+
+    [SerializeField]
+    private int _shadowCount = 3;
+
+    [SerializeField]
+    private float _spawnDelay = 1f;
+
+    [SerializeField]
+    private Material _laserMaterial;
     #endregion
 
     #region Private Fields
@@ -36,7 +40,8 @@ public class ShadowPlayerController : PlayerController
     private bool _canSwitch = true;
     private bool _isRoundStarted = false;
 
-    [SerializeField] private Color _aSwitchColor;
+    [SerializeField]
+    private Color _aSwitchColor;
     #endregion
 
     #region Events
@@ -48,6 +53,7 @@ public class ShadowPlayerController : PlayerController
     #region Public Fields
     public IReadOnlyList<GameObject> Shadows => _shadows;
     public Color ASwitchColor => _aSwitchColor;
+    public bool CanMove = true;
     #endregion
 
     #region VFX Cleanup
@@ -65,9 +71,7 @@ public class ShadowPlayerController : PlayerController
         Color color;
         ColorUtility.TryParseHtmlString("#FF2222", out color);
 
-        _playerNameObj
-            .GetComponentInChildren<TMPro.TextMeshProUGUI>()
-            .color = color;
+        _playerNameObj.GetComponentInChildren<TMPro.TextMeshProUGUI>().color = color;
 
         _playerInput = GetComponentInParent<PlayerInput>();
 
@@ -135,6 +139,7 @@ public class ShadowPlayerController : PlayerController
             return;
         if (AreAllShadowsEaten())
             return;
+        if(!CanMove) return;
 
         Vector2 moveInput = context.ReadValue<Vector2>();
         var activeGhost = _shadows[_activeShadowIndex];
@@ -160,10 +165,14 @@ public class ShadowPlayerController : PlayerController
     /// </summary>
     private void OnLBSwitch(InputAction.CallbackContext context)
     {
-        if (!_isRoundStarted || _shadows.Count == 0) return;
-        if (AreAllShadowsEaten()) return; 
-        if (!_canSwitch) return;
-        if (!HaveShadowsLeftBase()) return;
+        if (!_isRoundStarted || _shadows.Count == 0)
+            return;
+        if (AreAllShadowsEaten())
+            return;
+        if (!_canSwitch)
+            return;
+        if (!HaveShadowsLeftBase())
+            return;
 
         OnLBSwitchEvent?.Invoke();
 
@@ -175,10 +184,14 @@ public class ShadowPlayerController : PlayerController
     /// </summary>
     private void OnRBSwitch(InputAction.CallbackContext context)
     {
-        if (!_isRoundStarted || _shadows.Count == 0) return;
-        if (AreAllShadowsEaten()) return;
-        if (!_canSwitch) return;
-        if (!HaveShadowsLeftBase()) return;
+        if (!_isRoundStarted || _shadows.Count == 0)
+            return;
+        if (AreAllShadowsEaten())
+            return;
+        if (!_canSwitch)
+            return;
+        if (!HaveShadowsLeftBase())
+            return;
 
         OnRBSwitchEvent?.Invoke();
 
@@ -191,7 +204,8 @@ public class ShadowPlayerController : PlayerController
     /// </summary>
     private void OnShowMyPlayer(InputAction.CallbackContext context)
     {
-        ShadowAppearanceManager shadowAppearanceManager = _shadows[_activeShadowIndex].GetComponent<ShadowAppearanceManager>();
+        ShadowAppearanceManager shadowAppearanceManager = _shadows[_activeShadowIndex]
+            .GetComponent<ShadowAppearanceManager>();
 
         shadowAppearanceManager.FlashLight();
     }
@@ -212,8 +226,11 @@ public class ShadowPlayerController : PlayerController
         controller.Owner = this;
         controller.SetShadowType(_roundShadowTypes[0]);
         controller.IsShadowActive = true;
+        // Enable easy movement for active ghost
+        controller.Movement.SetEasyMovement(true);
 
-        ShadowAppearanceManager appearanceManager = controller.GetComponent<ShadowAppearanceManager>();
+        ShadowAppearanceManager appearanceManager =
+            controller.GetComponent<ShadowAppearanceManager>();
 
         appearanceManager.colorBeforeFrightened = appearanceManager.blinkyColor;
         appearanceManager.SetCustomColor(appearanceManager.blinkyColor);
@@ -243,8 +260,11 @@ public class ShadowPlayerController : PlayerController
             ghost.name = $"Ghost_{i + 1}";
 
             var controller = ghost.GetComponent<ShadowController>();
+            controller.Owner = this;
             controller.SetShadowType(_roundShadowTypes[i]);
             controller.IsShadowActive = false;
+            // Disable easy movement for newly spawned ghosts (AI managed) until they become active
+            controller.Movement.SetEasyMovement(false);
             controller.SetState(new ShadowExitBaseState());
 
             ShadowAppearanceManager appearanceManager =
@@ -328,6 +348,7 @@ public class ShadowPlayerController : PlayerController
     /// </summary>
     private void Timer_OnRoundStart(object sender, System.EventArgs e)
     {
+        CanMove = true;
         _isRoundStarted = true;
     }
     #endregion
@@ -391,6 +412,8 @@ public class ShadowPlayerController : PlayerController
 
         var old = _shadows[_activeShadowIndex].GetComponent<ShadowController>();
         old.IsShadowActive = false;
+        // Disable easy movement for old shadow since it's no longer player controlled
+        old.Movement.SetEasyMovement(false);
         old.SetState(isFrightened ? new ShadowFrightenedState() : new ShadowScatterState());
 
         _activeShadowIndex = newIndex;
@@ -398,6 +421,8 @@ public class ShadowPlayerController : PlayerController
 
         var next = _shadows[_activeShadowIndex].GetComponent<ShadowController>();
         next.IsShadowActive = true;
+        // Enable easy movement for new shadow since it's now player controlled
+        next.Movement.SetEasyMovement(true);
         next.SetState(new ShadowActiveState());
 
         StartCoroutine(PlaySwitchLaser(old, next));
@@ -432,7 +457,11 @@ public class ShadowPlayerController : PlayerController
 
         Gradient gradient = new Gradient();
         gradient.SetKeys(
-            new GradientColorKey[] { new GradientColorKey(Color.softRed, 0f), new GradientColorKey(Color.softRed, 1f) },
+            new GradientColorKey[]
+            {
+                new GradientColorKey(Color.softRed, 0f),
+                new GradientColorKey(Color.softRed, 1f),
+            },
             new GradientAlphaKey[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) }
         );
         lr.colorGradient = gradient;
@@ -500,8 +529,9 @@ public class ShadowPlayerController : PlayerController
     /// </summary>
     public IEnumerator SwitchShadowsRandomCoroutine()
     {
-        yield return null; 
-        if(AreAllShadowsEaten()) yield break;
+        yield return null;
+        if (AreAllShadowsEaten())
+            yield break;
 
         Debug.LogWarning("SwitchShadowsRandomCoroutine");
 
@@ -513,6 +543,8 @@ public class ShadowPlayerController : PlayerController
 
         var oldController = _shadows[_activeShadowIndex].GetComponent<ShadowController>();
         oldController.IsShadowActive = false;
+        // Disable easy movement for old shadow since it's no longer player controlled
+        oldController.Movement.SetEasyMovement(false);
 
         int randomIndex = _activeShadowIndex;
         if (_shadows.Count > 1)
@@ -537,6 +569,8 @@ public class ShadowPlayerController : PlayerController
 
         var newController = _shadows[_activeShadowIndex].GetComponent<ShadowController>();
         newController.IsShadowActive = true;
+        // Enable easy movement for new shadow since it's now player controlled
+        newController.Movement.SetEasyMovement(true);
         newController.SetState(new ShadowActiveState());
 
         ShadowAppearanceManager shadowAppearanceManager =
@@ -636,8 +670,7 @@ public class ShadowPlayerController : PlayerController
         if (_shadows.Count == 0)
             return;
 
-        var appearance = _shadows[_activeShadowIndex]
-            .GetComponent<ShadowAppearanceManager>();
+        var appearance = _shadows[_activeShadowIndex].GetComponent<ShadowAppearanceManager>();
 
         _aSwitchColor = appearance.GetCurrentColor();
     }
@@ -656,36 +689,44 @@ public class ShadowPlayerController : PlayerController
     }
 
     [Header("Debug Info (Inspector)")]
-    [SerializeField] private bool _enableInspectorDebug = true;
-    [SerializeField] private List<ShadowDebugInfo> _shadowDebugInfos = new();
+    [SerializeField]
+    private bool _enableInspectorDebug = true;
+
+    [SerializeField]
+    private List<ShadowDebugInfo> _shadowDebugInfos = new();
 
     /// <summary>
     /// Update inspector debug info
     /// </summary>
     private void UpdateInspectorDebug()
     {
-        if(_shadows.Count <= 1) return;
+        if (_shadows.Count <= 1)
+            return;
 
-        if (!_enableInspectorDebug) return;
+        if (!_enableInspectorDebug)
+            return;
 
         _shadowDebugInfos.Clear();
 
         for (int i = 0; i < _shadows.Count; i++)
         {
             var shadowObj = _shadows[i];
-            if (shadowObj == null) continue;
+            if (shadowObj == null)
+                continue;
 
             var controller = shadowObj.GetComponent<ShadowController>();
             var appearance = shadowObj.GetComponent<ShadowAppearanceManager>();
 
-            _shadowDebugInfos.Add(new ShadowDebugInfo
-            {
-                name = shadowObj.name,
-                type = controller.Type,
-                state = controller.CurrentState.State,
-                isActive = controller.IsShadowActive,
-                color = appearance?.GetCurrentColor() ?? Color.white
-            });
+            _shadowDebugInfos.Add(
+                new ShadowDebugInfo
+                {
+                    name = shadowObj.name,
+                    type = controller.Type,
+                    state = controller.CurrentState.State,
+                    isActive = controller.IsShadowActive,
+                    color = appearance?.GetCurrentColor() ?? Color.white,
+                }
+            );
         }
     }
 
@@ -701,14 +742,16 @@ public class ShadowPlayerController : PlayerController
             ShadowType.Blinky,
             ShadowType.Inky,
             ShadowType.Clyde,
-            ShadowType.Pinky
+            ShadowType.Pinky,
         };
 
         for (int i = 0; i < availableTypes.Count; i++)
         {
             int randomIndex = Random.Range(i, availableTypes.Count);
-            (availableTypes[i], availableTypes[randomIndex]) =
-                (availableTypes[randomIndex], availableTypes[i]);
+            (availableTypes[i], availableTypes[randomIndex]) = (
+                availableTypes[randomIndex],
+                availableTypes[i]
+            );
         }
 
         _roundShadowTypes = availableTypes.GetRange(0, _shadowCount);
@@ -718,7 +761,8 @@ public class ShadowPlayerController : PlayerController
     {
         foreach (var shadow in _shadows)
         {
-            if (shadow == null) continue;
+            if (shadow == null)
+                continue;
             var controller = shadow.GetComponent<ShadowController>();
             if (controller.CurrentState.State != ShadowState.Eaten)
                 return false;
@@ -732,16 +776,18 @@ public class ShadowPlayerController : PlayerController
 
         var old = _shadows[_activeShadowIndex].GetComponent<ShadowController>();
         old.IsShadowActive = false;
+        // Disable easy movement for old shadow since it's no longer player controlled
+        old.Movement.SetEasyMovement(false);
 
         _activeShadowIndex = _shadows.IndexOf(shadow.gameObject);
         UpdateASwitchColor();
 
         var next = _shadows[_activeShadowIndex].GetComponent<ShadowController>();
         next.IsShadowActive = true;
+        // Enable easy movement for new shadow since it's now player controlled
+        next.Movement.SetEasyMovement(true);
         next.SetState(new ShadowActiveState());
 
         OnActiveRandomSwitch?.Invoke();
     }
-
-
 }

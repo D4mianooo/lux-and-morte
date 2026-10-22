@@ -168,10 +168,10 @@ public class TimerUI : MonoBehaviour
 
         _roundSlider.value = Mathf.Lerp(_roundSlider.value , roundTimeLeft, Time.deltaTime);
         if (roundTimeLeft <= 0.25f) {
-            if (!_soundPlayed) {
-                _soundPlayed = true;
-                AudioManager.Instance.PlayOneShot(AudioManager.Instance.FMODEvents.SFX.TimeDangerZone);
-            }
+            // if (!_soundPlayed) {
+            //     _soundPlayed = true;
+            //     AudioManager.Instance.PlayOneShot(AudioManager.Instance.FMODEvents.SFX.TimeDangerZone);
+            // }
             _roundSlider.fillRect.GetComponent<Image>().color = _timerDangerZoneColor;
         }
     }

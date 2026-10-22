@@ -11,8 +11,7 @@ public class PlayerController : MonoBehaviour
 {
     #region Fields
     protected GameObject _playerNameObj;
-    private string _playerNick = "";
-    private string _anotherPlayerNick = "";
+    public string PlayerNick = "";
     private float _baseScale = 0.05f;
     private GameObject _playerScoreObj;
     #endregion
@@ -47,13 +46,13 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void Timer_OnRoundEnd(object sender, OnRoundEndEventArgs e)
     {
-        string playerNickPom = _playerNick;
-        string anotherPlayerNickPom = _anotherPlayerNick;
+        //string playerNickPom = _playerNick;
+        //string anotherPlayerNickPom = _anotherPlayerNick;
 
-        _playerNick = anotherPlayerNickPom;
-        _anotherPlayerNick = playerNickPom;
+        //_playerNick = anotherPlayerNickPom;
+        //_anotherPlayerNick = playerNickPom;
 
-        _playerNameObj.GetComponentInChildren<TMPro.TextMeshProUGUI>().text = _playerNick;
+        _playerNameObj.GetComponentInChildren<TMPro.TextMeshProUGUI>().text = PlayerNick;
     }
 
     /// <summary>
@@ -72,7 +71,7 @@ public class PlayerController : MonoBehaviour
     /// Triggers the score animation when this player earns points and logs it.
     /// Only runs for LightPlayerController instances.
     /// </summary>
-    private void PlayerManager_OnPlayerScoreChanged(PlayerManager.PlayerData arg1, int arg2)
+    protected void PlayerManager_OnPlayerScoreChanged(PlayerManager.PlayerData arg1, int arg2)
     {
         if (this.GetComponent<LightPlayerController>() == null) return;
 
@@ -165,9 +164,9 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     public void SetPlayerNick(string nick)
     {
-        _playerNick = nick;
+        PlayerNick = nick;
 
-        _playerNameObj.GetComponentInChildren<TMPro.TextMeshProUGUI>().text = _playerNick;
+        _playerNameObj.GetComponentInChildren<TMPro.TextMeshProUGUI>().text = PlayerNick;
     }
 
     /// <summary>
@@ -178,14 +177,6 @@ public class PlayerController : MonoBehaviour
     {
         _playerNameObj = playerNameObj;
         _playerNameObj.SetActive(false);
-    }
-
-    /// <summary>
-    /// Sets the nickname of another player, used for swapping at round end.
-    /// </summary>
-    public void SetAnotherPlayerNick(string nick)
-    {
-        _anotherPlayerNick = nick;
     }
 
     /// <summary>

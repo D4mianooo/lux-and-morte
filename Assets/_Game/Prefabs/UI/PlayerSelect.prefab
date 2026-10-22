@@ -1125,6 +1125,10 @@ MonoBehaviour:
   _p2PlayerNameBar: {fileID: 7768285930357811333}
   _p1PlayerNameInput: {fileID: 8291372013861864432}
   _p2PlayerNameInput: {fileID: 404094240862937840}
+  _nameInputBarInEaseTime: 0.5
+  _nameInputBarInEase: 4
+  _nameInputBarOutEaseTime: 0.5
+  _nameInputBarOutEase: 26
   _p1PlayerReadyButton: {fileID: 3157388827999905514}
   _p2PlayerReadyButton: {fileID: 2454364517051627563}
   _p1ReadyTextTransform: {fileID: 8862354038808333772}
@@ -1135,6 +1139,17 @@ MonoBehaviour:
   _playerTextTransitionEase: 13
   _playerReadyScaleDuration: 0.5
   _playerReadyScaleEase: 24
+  _p1ConfirmButtonIcon: {fileID: 245499811174060224}
+  _p2ConfirmButtonIcon: {fileID: 880290125812033449}
+  _xboxSouthButtonSprite: {fileID: -629864935230283137, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  _playstationSouthButtonSprite: {fileID: -891641230, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  _xboxL2TriggerSprite: {fileID: -1805477763, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  _playstationL2TriggerSprite: {fileID: -804504531, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  _xboxR2TriggerSprite: {fileID: -575546271, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  _playstationR2TriggerSprite: {fileID: -1766662189, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  _nameConflictShakeDuration: 0.5
+  _nameConflictShakeStrength: 10
+  _nameConflictShakeVibrato: 20
   _canvasGroup: {fileID: 8484940050273829345}
   _playerSwapUI: {fileID: 0}
 --- !u!225 &8484940050273829345
@@ -1370,7 +1385,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -1494995735, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  m_Sprite: {fileID: -61699905, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1701,7 +1716,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -1494995735, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  m_Sprite: {fileID: -61699905, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3026,7 +3041,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -891641230, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  m_Sprite: {fileID: 1981337810, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3237,7 +3252,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -891641230, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
+  m_Sprite: {fileID: 1981337810, guid: 66708d27b6a67874485bdf84c425d3fc, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3380,7 +3395,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 0.13725491, g: 0.16078432, b: 0.14117648, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

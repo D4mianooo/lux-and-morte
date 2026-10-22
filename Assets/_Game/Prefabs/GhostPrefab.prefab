@@ -120,7 +120,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 9dfc825aed78fcd4ba02077103263b40, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -707,6 +707,14 @@ PrefabInstance:
       propertyPath: m_PointLightOuterRadius
       value: 4
       objectReference: {fileID: 0}
+    - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
+      propertyPath: m_ApplyToSortingLayers.Array.size
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
+      propertyPath: 'm_ApplyToSortingLayers.Array.data[5]'
+      value: 438186269
+      objectReference: {fileID: 0}
     - target: {fileID: 1148501878645127203, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -799,6 +807,18 @@ PrefabInstance:
     - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
       propertyPath: m_Color.r
       value: 0.6415094
+      objectReference: {fileID: 0}
+    - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
+      propertyPath: m_Intensity
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
+      propertyPath: m_LightOrder
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
+      propertyPath: m_BlendStyleIndex
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 653275014104002741, guid: 4d471f0405b56a54eb10b06aaee6a65b, type: 3}
       propertyPath: m_FalloffIntensity

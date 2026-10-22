@@ -36,6 +36,10 @@ public class FMODEvents : ScriptableObject
                 Debug.LogWarning($"[FMODEvents] SFX.TimeDangerZone is not assigned in {name}");
             if (SFX.ScoreBeep.IsNull)
                 Debug.LogWarning($"[FMODEvents] SFX.ScoreBeep is not assigned in {name}");
+            if (SFX.GameOver.IsNull)
+                Debug.LogWarning($"[FMODEvents] SFX.GameOver is not assigned in {name}");
+            if (SFX.Win.IsNull)
+                Debug.LogWarning($"[FMODEvents] SFX.Win is not assigned in {name}");
         }
 
         // Check BGM
@@ -63,6 +67,8 @@ namespace AudioEvents
         public EventReference TimeDangerZone;
         public EventReference EnemySwap;
         public EventReference ScoreBeep;
+        public EventReference GameOver;
+        public EventReference Win;
     }
 
     [System.Serializable]

@@ -1,8 +1,10 @@
+using System;
 using UnityEngine;
 
 /// <summary>
 /// Movement processing with hysteresis and dual-thresholds.
 /// </summary>
+[Serializable]
 public class Movement
 {
     #region Constants and enums
@@ -23,6 +25,7 @@ public class Movement
     private readonly Grid _grid;
 
     private bool _isLocked = false;
+    private bool _easyMovement = true;
 
     private float _speed;
     private float _defaultSpeed;
@@ -47,13 +50,13 @@ public class Movement
     private bool _isDirectionLocked = false;
 
     // Minimum stick magnitude to initially activate or switch direction
-    private float _activationThreshold = 0.65f;
+    private float _activationThreshold = 0.5f;
 
     // Stick must drop below this to consider it 'released' (but keeps moving)
-    private float _deactivationThreshold = 0.2f;
+    private float _deactivationThreshold = 0.4f;
 
     // Higher threshold required to switch to a different direction
-    private float _switchDirectionThreshold = 0.8f;
+    private float _switchDirectionThreshold = 0.6f;
 
     // Stores the current controller stick input state
     private Vector2 _currentStickInput = Vector2.zero;
@@ -72,7 +75,8 @@ public class Movement
         Grid grid,
         float speed,
         float centerThreshold = 0.06f,
-        float snapSpeedMultiplier = 1.5f
+        float snapSpeedMultiplier = 1.5f,
+        bool easyMovement = true
     )
     {
         _rb = rb;
@@ -82,6 +86,7 @@ public class Movement
         _centerThreshold = centerThreshold;
         _snapSpeedMultiplier = snapSpeedMultiplier;
         _defaultSpeed = speed;
+        _easyMovement = easyMovement;
     }
 
     public Vector2 MoveDirection => _moveDirection;
@@ -108,13 +113,11 @@ public class Movement
         if (_isDirectionLocked && maxAxis < _deactivationThreshold)
         {
             _isDirectionLocked = false;
-            _queuedDirection = Vector2.zero;
             return;
         }
 
         if (maxAxis < _activationThreshold)
         {
-            _queuedDirection = Vector2.zero;
             return;
         }
 
@@ -174,6 +177,11 @@ public class Movement
             ReEvaluateStickInput();
         }
 
+        if (_easyMovement && _moveDirection != Vector2.zero)
+        {
+            TryAutoTurn(currentPos);
+        }
+
         if (_queuedDirection == Vector2.zero || _queuedDirection == _moveDirection)
             return;
 
@@ -187,8 +195,6 @@ public class Movement
 
             if (!_grid.IsWalkable(queuedNeighbor))
             {
-                _queuedDirection = Vector2.zero;
-
                 // Moved into wall, re-evaluate stick input
                 if (_moveDirection == Vector2.zero)
                 {
@@ -212,12 +218,79 @@ public class Movement
 
             if (!_grid.IsWalkable(queuedNeighbor))
             {
-                // Can't turn here, clear the queue but keep moving forward
-                _queuedDirection = Vector2.zero;
                 return;
             }
 
             InitiateDirectionChange(currentPos);
+        }
+    }
+    #endregion
+
+    #region Auto-turn logic
+    /// <summary>
+    /// Checks if an automatic turn should occur at a corner.
+    /// Auto-turns when blocked ahead and only one perpendicular direction continues the path.
+    /// Never overrides manual backwards movement.
+    /// </summary>
+    private void TryAutoTurn(Vector2 currentPos)
+    {
+        Vector3Int currentCell = Grid.WorldToCell(currentPos);
+        Vector3Int nextCell =
+            currentCell + new Vector3Int((int)_moveDirection.x, (int)_moveDirection.y, 0);
+
+        // Check if current direction is blocked
+        bool currentDirectionBlocked = !_grid.IsWalkable(nextCell);
+
+        // Only auto-turn when we're blocked by a wall
+        if (!currentDirectionBlocked)
+            return;
+
+        // Never override manual backwards input
+        if (
+            _queuedDirection != Vector2.zero
+            && IsOppositeDirection(_queuedDirection, _moveDirection)
+        )
+            return;
+
+        // Get perpendicular directions at the current cell (never check backwards)
+        Vector2[] perpendicularDirections = GetPerpendicularDirections(_moveDirection);
+        Vector2 validDirection = Vector2.zero;
+        int validCount = 0;
+
+        // Check which perpendicular directions are walkable
+        foreach (Vector2 perpDir in perpendicularDirections)
+        {
+            Vector3Int perpCell = currentCell + new Vector3Int((int)perpDir.x, (int)perpDir.y, 0);
+            if (_grid.IsWalkable(perpCell))
+            {
+                validCount++;
+                validDirection = perpDir;
+            }
+        }
+
+        // Auto-turn ONLY if exactly one perpendicular direction is available
+        // If validCount is 0 (dead end) or > 1 (intersection/diverge), don't auto-turn
+        // At forced corners, override any queued direction with the only valid path
+        if (validCount == 1)
+        {
+            _queuedDirection = validDirection;
+        }
+    }
+
+    /// <summary>
+    /// Returns the two perpendicular directions to the given direction.
+    /// </summary>
+    private Vector2[] GetPerpendicularDirections(Vector2 direction)
+    {
+        if (Mathf.Abs(direction.x) > 0f)
+        {
+            // Moving horizontally, return vertical directions
+            return new Vector2[] { Vector2.up, Vector2.down };
+        }
+        else
+        {
+            // Moving vertically, return horizontal directions
+            return new Vector2[] { Vector2.left, Vector2.right };
         }
     }
     #endregion
@@ -363,6 +436,7 @@ public class Movement
 
     /// <summary>
     /// Stops movement at the center of the current cell when hitting a wall.
+    /// Won't clear movement direction if a valid queued direction exists (for auto-turn).
     /// </summary>
     private Vector2 StopAtCellCenter(Vector2 currentPos)
     {
@@ -373,11 +447,15 @@ public class Movement
         float moveAmount = _speed * _speedMult * Time.fixedDeltaTime;
         Vector2 nextPos = Vector2.MoveTowards(currentPos, targetCenter, moveAmount);
 
-        // If we're at or very close to center, snap exactly and clear move direction
+        // If we're at or very close to center, snap exactly
         if ((nextPos - targetCenter).sqrMagnitude <= SNAP_COMPLETE_TOLERANCE)
         {
             nextPos = targetCenter;
-            _moveDirection = Vector2.zero;
+            // Only clear move direction if we don't have a queued direction (allow auto-turn to complete)
+            if (_queuedDirection == Vector2.zero)
+            {
+                _moveDirection = Vector2.zero;
+            }
         }
 
         return nextPos;
@@ -575,6 +653,14 @@ public class Movement
     }
 
     /// <summary>
+    /// Checks if two directions are opposite (180 degrees apart).
+    /// </summary>
+    private bool IsOppositeDirection(Vector2 dir1, Vector2 dir2)
+    {
+        return Vector2.Dot(dir1, dir2) < -0.5f;
+    }
+
+    /// <summary>
     /// Helper to check if moving horizontally (reduces repeated Mathf.Abs calls).
     /// </summary>
     private bool IsMovingHorizontally() => Mathf.Abs(_moveDirection.x) > 0f;
@@ -607,5 +693,23 @@ public class Movement
         _currentStickInput = Vector2.zero;
         _isSnapping = false;
     }
+
+    /// <summary>
+    /// Sets whether easy movement (auto-turn at corners) is enabled.
+    /// If the setting was disabled in the PlayerPrefs, it will be overridden to false on game start
+    /// </summary>
+    public void SetEasyMovement(bool enabled)
+    {
+        // Allow switching easy movement on the fly, but only enable it at game start if the setting is enabled in PlayerPrefs
+        if (GameManager.Instance != null && GameManager.Instance.EasyMovementEnabled == true)
+        {
+            _easyMovement = enabled;
+        }
+    }
+
+    /// <summary>
+    /// Gets whether easy movement is currently enabled.
+    /// </summary>
+    public bool GetEasyMovement() => _easyMovement;
     #endregion
 }

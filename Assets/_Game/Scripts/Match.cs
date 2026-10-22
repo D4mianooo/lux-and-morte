@@ -65,7 +65,7 @@ public class Match : MonoBehaviour
             return;
 
         RoundTime += Time.deltaTime;
-        if (_currentRound > 10)
+        if (_currentRound > _rounds)
         {
             EndMatch();
         }

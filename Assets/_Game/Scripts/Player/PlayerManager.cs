@@ -52,6 +52,11 @@ public class PlayerManager
             // Update Input reference to match the new GameObject
             Input = obj.GetComponent<PlayerInput>();
         }
+
+        public void RaisePlayerScoreChanged(int score)
+        {
+            OnScoreChanged?.Invoke(score);
+        }
     }
 
     public enum PlayerRole
@@ -168,6 +173,12 @@ public class PlayerManager
         GameObject tempGameObject = playerA.PlayerObject;
         playerA.SetPlayerObject(playerB.PlayerObject); // This updates Input reference
         playerB.SetPlayerObject(tempGameObject); // This updates Input reference
+
+        string nickA = playerA.PlayerObject.GetComponentInChildren<PlayerController>().PlayerNick;
+        string nickB = playerB.PlayerObject.GetComponentInChildren<PlayerController>().PlayerNick;
+
+        playerA.PlayerObject.GetComponentInChildren<PlayerController>().PlayerNick = nickB;
+        playerB.PlayerObject.GetComponentInChildren<PlayerController>().PlayerNick = nickA;
 
         // Now pair gamepads to the new PlayerInputs
         // P1 keeps padA, but now it's paired to the GameObject they swapped to

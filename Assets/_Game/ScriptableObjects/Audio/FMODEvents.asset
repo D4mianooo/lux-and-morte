@@ -48,6 +48,20 @@ MonoBehaviour:
         Data3: 1524126865
         Data4: -1079670423
       Path: event:/SFX/ScoreBeep
+    GameOver:
+      Guid:
+        Data1: 253630558
+        Data2: 1245106198
+        Data3: 2110120630
+        Data4: 1089157684
+      Path: event:/SFX/GameOver
+    Win:
+      Guid:
+        Data1: -42028430
+        Data2: 1110725111
+        Data3: 1090430607
+        Data4: 1801404359
+      Path: event:/SFX/Win
   Music:
     Music8Bit:
       Guid:
