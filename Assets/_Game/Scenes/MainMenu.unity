@@ -1392,6 +1392,7 @@ GameObject:
   m_Component:
   - component: {fileID: 796423701}
   - component: {fileID: 796423700}
+  - component: {fileID: 796423702}
   m_Layer: 0
   m_Name: MenuManager
   m_TagString: Untagged
@@ -1412,8 +1413,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuManager
   _eventSystem: {fileID: 1822544449}
-  _loadingScreen: {fileID: 1000382674}
-  _cutsceneController: {fileID: 9149459407335462353}
   _mainMenu:
     Canvas: {fileID: 487852421}
     Selected: {fileID: 487852419}
@@ -1432,7 +1431,19 @@ MonoBehaviour:
   _gameOverMenu:
     Canvas: {fileID: 1088199724}
     Selected: {fileID: 1088199722}
-  _cutsceneObj: {fileID: 8444783787721547098}
+--- !u!114 &796423702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 796423699}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dec4e08daaba4c998bfab7f0b832e238, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneManager
+  _loadingScreen: {fileID: 1000382674}
 --- !u!4 &796423701
 Transform:
   m_ObjectHideFlags: 0
